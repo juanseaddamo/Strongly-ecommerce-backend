@@ -1,1 +1,65 @@
 .qodo
+
+# === Java / Spring Boot ===
+*.class
+*.war
+*.ear
+*.jar
+*.iml
+
+# === Maven ===
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+
+# === Gradle ===
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# === IntelliJ IDEA ===
+.idea/
+*.ipr
+*.iws
+
+# === VS Code ===
+.vscode/
+.settings/
+
+# === Eclipse ===
+.project
+.classpath
+.settings/
+
+# === Logs y temporales ===
+*.log
+*.out
+*.tmp
+*.swp
+*.swo
+
+# === SO (Windows / Mac) ===
+.DS_Store
+Thumbs.db
+
+# === Base de datos / MySQL ===
+*.sql
+*.dump
+*.db
+
+# === Postman ===
+*.postman_collection.json
+*.postman_environment.json
+
+# === Archivos de test / coverage ===
+/coverage/
+*.lcov
+*.jacoco.exec
+
+# === Archivos sensibles ===
+application-*.yml
+application-*.properties
+.env
