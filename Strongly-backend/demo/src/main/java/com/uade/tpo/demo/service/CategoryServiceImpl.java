@@ -6,7 +6,6 @@ import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Service;
 
 import com.uade.tpo.demo.entity.Category;
@@ -38,9 +37,9 @@ public class CategoryServiceImpl implements CategoryService {
          Category parent = categoryRepository.findById( parent_Id).orElse(null);
          category.setParent(parent);
         return categoryRepository.save(category);
+        }
+        throw new CategoryDuplicateException();
     }
-    throw new CategoryDuplicateException();
-}
 
 
     public List<Category> getCategorysByIdParent(Long parentId) throws CategoryNotFoundException {

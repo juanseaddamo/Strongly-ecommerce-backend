@@ -38,10 +38,19 @@ public class User {
     @Column(name = "created_at")
     private Instant createdAt;
 
+    //PARA HACER UN SOFTDELETE
+    @Column(name = "is_active")
+    private Boolean isActive = true; // por defecto true
+
     // 1 usuario → muchas órdenes
     @OneToMany(mappedBy = "user")
     private List<Order> orders;
 
     @PrePersist
     public void prePersist() { if (createdAt == null) createdAt = Instant.now(); }
+
+    public User filter(Object object) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'filter'");
+    }
 }

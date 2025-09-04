@@ -60,6 +60,7 @@ public ResponseEntity<List<ProductRequest>> getProductsByCategory(@PathVariable 
 
     return ResponseEntity.ok(productos);
 }
+<<<<<<< HEAD
 
 @PostMapping("/updatePrice")
 public ResponseEntity<ProductRequest> updatePrice(@RequestBody UpdateProductPrice req) 
