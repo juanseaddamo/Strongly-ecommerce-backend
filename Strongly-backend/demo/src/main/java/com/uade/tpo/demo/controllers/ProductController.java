@@ -5,14 +5,16 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.uade.tpo.demo.entity.Product;
-import com.uade.tpo.demo.entity.dto.CategoryRequest;
-import com.uade.tpo.demo.exceptions.CategoryDuplicateException;
+import com.uade.tpo.demo.entity.dto.ProductRequest;
+import com.uade.tpo.demo.entity.dto.UpdateProductPrice;
+import com.uade.tpo.demo.entity.dto.UpdateProductStock;
 import com.uade.tpo.demo.exceptions.CategoryNotFoundException;
-import com.uade.tpo.demo.service.CategoryService;
+import com.uade.tpo.demo.exceptions.ProductDuplicateException;
+import com.uade.tpo.demo.exceptions.ProductNotFoundException;
+import com.uade.tpo.demo.service.ProductService;
 
 
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -30,38 +32,68 @@ import org.springframework.web.bind.annotation.RequestBody;
 public class ProductController {
 
     @Autowired
-    private CategoryService categoryService;
+    private ProductService productService;
 
     @GetMapping
-    public ResponseEntity<Page<Category>> getCategories(
-            @RequestParam(required = false) Integer page,
-            @RequestParam(required = false) Integer size) {
-        if (page == null || size == null)
-            return ResponseEntity.ok(categoryService.getCategories(PageRequest.of(0, Integer.MAX_VALUE)));
-        return ResponseEntity.ok(categoryService.getCategories(PageRequest.of(page, size)));
-    }
+public ResponseEntity<Page<ProductRequest>> getProduct(
+        @RequestParam(required = false) Integer page,
+        @RequestParam(required = false) Integer size) {
 
-    @GetMapping("/{categoryId}")
-    public ResponseEntity<Category> getCategoryById(@PathVariable Long categoryId) {
-        Optional<Category> result = categoryService.getCategoryById(categoryId);
-        if (result.isPresent())
-            return ResponseEntity.ok(result.get());
+    PageRequest pageable = (page == null || size == null) 
+                           ? PageRequest.of(0, Integer.MAX_VALUE)
+                           : PageRequest.of(page, size);
 
-        return ResponseEntity.noContent().build();
-    }
+    Page<ProductRequest> products = productService.getProduct(pageable);
 
-@GetMapping("/by-parent/{parentId}")
-public ResponseEntity<List<Category>> getCategoriesByParent(@PathVariable Long parentId) throws CategoryNotFoundException {
-    List<Category> categories = categoryService.getCategorysByIdParent(parentId);
-    if (categories.isEmpty()) {
-        return ResponseEntity.noContent().build();
-    }
-    return ResponseEntity.ok(categories);
+    return ResponseEntity.ok(products);
 }
-    @PostMapping
-    public ResponseEntity<Object> createCategory(@RequestBody CategoryRequest categoryRequest)
-            throws CategoryDuplicateException {
-        Category result = categoryService.createCategory(categoryRequest.getName(),categoryRequest.getDescription(),categoryRequest.getParent_id());
-        return ResponseEntity.created(URI.create("/categories/" + result.getId())).body(result);
+
+@GetMapping("/category/{categoryId}")
+public ResponseEntity<List<ProductRequest>> getProductsByCategory(@PathVariable Long categoryId) 
+        throws CategoryNotFoundException {
+
+    List<ProductRequest> productos = productService.getProductsByCategory(categoryId);
+
+    if (productos.isEmpty()) {
+        return ResponseEntity.noContent().build();
     }
+
+    return ResponseEntity.ok(productos);
+}
+
+@PostMapping("/updatePrice")
+public ResponseEntity<ProductRequest> updatePrice(@RequestBody UpdateProductPrice req) 
+        throws ProductNotFoundException {
+
+    ProductRequest result = productService.updatePrice(req.getIdProducto(), req.getPrecio());
+    return ResponseEntity.ok(result);
+}
+
+@PostMapping("/updateStock")
+public ResponseEntity<ProductRequest> updateStock(@RequestBody UpdateProductStock req) 
+        throws ProductNotFoundException {
+
+    ProductRequest result = productService.updateStock(req.getIdProducto(), req.getStock());
+    return ResponseEntity.ok(result);
+}
+
+
+    @GetMapping("/{productId}")
+public ResponseEntity<ProductRequest> getProductById(@PathVariable Long productId) {
+    Optional<ProductRequest> result = productService.getProductById(productId);
+
+    return result
+            .map(ResponseEntity::ok)          // si existe, devuelve 200 con el DTO
+            .orElseGet(() -> ResponseEntity.noContent().build()); // si no, 204
+}
+
+
+@PostMapping
+public ResponseEntity<ProductRequest> createProduct(@RequestBody ProductRequest pr)  throws ProductDuplicateException {
+
+    ProductRequest response =productService.createProduct(pr.getName(),pr.getDescription(),pr.getStock(),pr.getPrice(),pr.getId_category(),pr.getId_User());
+    return ResponseEntity.created(URI.create("/product/" + response.getId())).body(response);
+
+}
+
 }
