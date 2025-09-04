@@ -40,6 +40,12 @@ public class Product {
     @Lob
     private String description;
 
+    // ...
+    @ManyToOne
+    @JoinColumn(name = "created_by")   // puede ser SELLER o ADMIN
+    private User createdBy;
+    // ...
+
     @ManyToOne(optional = false)
     @JoinColumn(name = "category_id")
     private Category category;
