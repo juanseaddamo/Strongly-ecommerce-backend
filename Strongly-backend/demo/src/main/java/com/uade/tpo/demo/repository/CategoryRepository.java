@@ -13,4 +13,11 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
 
     @Query(value = "select c from Category c where c.description = ?1")
     List<Category> findByDescription(String description);
+
+    
+    @Query(value = "select c from Category c where c.name = ?1")
+    List<Category> findByname(String name);
+        
+    @Query(value = "select c from Category c where c.parent = ?1")
+    List<Category> findByParent_id(Category parent);
 }

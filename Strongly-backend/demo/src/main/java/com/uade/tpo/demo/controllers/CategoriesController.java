@@ -7,8 +7,9 @@ import org.springframework.web.bind.annotation.RestController;
 import com.uade.tpo.demo.entity.Category;
 import com.uade.tpo.demo.entity.dto.CategoryRequest;
 import com.uade.tpo.demo.exceptions.CategoryDuplicateException;
+import com.uade.tpo.demo.exceptions.CategoryNotFoundException;
 import com.uade.tpo.demo.service.CategoryService;
-import com.uade.tpo.demo.service.CategoryServiceImpl;
+
 
 import java.net.URI;
 import java.util.ArrayList;
@@ -49,10 +50,18 @@ public class CategoriesController {
         return ResponseEntity.noContent().build();
     }
 
+@GetMapping("/by-parent/{parentId}")
+public ResponseEntity<List<Category>> getCategoriesByParent(@PathVariable Long parentId) throws CategoryNotFoundException {
+    List<Category> categories = categoryService.getCategorysByIdParent(parentId);
+    if (categories.isEmpty()) {
+        return ResponseEntity.noContent().build();
+    }
+    return ResponseEntity.ok(categories);
+}
     @PostMapping
     public ResponseEntity<Object> createCategory(@RequestBody CategoryRequest categoryRequest)
             throws CategoryDuplicateException {
-        Category result = categoryService.createCategory(categoryRequest.getDescription());
+        Category result = categoryService.createCategory(categoryRequest.getName(),categoryRequest.getDescription(),categoryRequest.getParent_id());
         return ResponseEntity.created(URI.create("/categories/" + result.getId())).body(result);
     }
 }
