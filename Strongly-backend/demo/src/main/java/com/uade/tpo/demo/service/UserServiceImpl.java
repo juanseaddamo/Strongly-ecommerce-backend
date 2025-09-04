@@ -11,7 +11,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import com.uade.tpo.demo.entity.User;
 import com.uade.tpo.demo.entity.enums.Role;
 import com.uade.tpo.demo.repository.UserRepository;
-import com.uade.tpo.demo.service.UserService;
+
 
 import lombok.RequiredArgsConstructor;
 
