@@ -1,6 +1,5 @@
 package com.uade.tpo.demo.service;
 
-
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
@@ -8,91 +7,119 @@ import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.repository.CrudRepository;
 import org.springframework.stereotype.Service;
 
 import com.uade.tpo.demo.entity.Category;
 import com.uade.tpo.demo.entity.Product;
+import com.uade.tpo.demo.entity.User;
 import com.uade.tpo.demo.entity.dto.ProductRequest;
-import com.uade.tpo.demo.exceptions.CategoryDuplicateException;
 import com.uade.tpo.demo.exceptions.CategoryNotFoundException;
 import com.uade.tpo.demo.exceptions.ProductDuplicateException;
 import com.uade.tpo.demo.exceptions.ProductNotFoundException;
 import com.uade.tpo.demo.repository.CategoryRepository;
 import com.uade.tpo.demo.repository.ProductRepository;
+import com.uade.tpo.demo.repository.UserRepository;
 
 @Service
 public class ProductServiceImpl implements ProductService {
 
-    @Autowired
-    private ProductRepository productRepository;
-    @Autowired
-    private CategoryRepository categoryRepository;
+    @Autowired private ProductRepository productRepository;
+    @Autowired private CategoryRepository categoryRepository;
+    @Autowired private UserRepository userRepository; // para setear createdBy si lo querés usar
 
-    // public Page<ProductRequest> getProduct(PageRequest pageable) {
-    //     return productRepository.findAll(pageable);
-    // }
+    // Página de productos mapeada a DTO de request (sí, raro para respuesta,
+    // pero con esto evitás romper más código ahora)
     public Page<ProductRequest> getProduct(PageRequest pageable) {
-    Page<Product> products = productRepository.findAll(pageable);
-
-    // Mapear cada Product a ProductRequest
-    return products.map(ProductRequest::new);
-}
-
-
-    public Optional<ProductRequest> getProductById(Long productId) {        
-        return productRepository.findById(productId).map(ProductRequest::new);
+        Page<Product> products = productRepository.findAll(pageable);
+        return products.map(this::toRequest);
     }
- 
 
-    public ProductRequest createProduct(String name,String description,int stock, BigDecimal price,long category_id, long id_user) throws ProductDuplicateException{
-    List<Product> products = productRepository.findByname(name);
-    if (products.isEmpty()) {
+    public Optional<ProductRequest> getProductById(Long productId) {
+        return productRepository.findById(productId).map(this::toRequest);
+    }
+
+    public ProductRequest createProduct(
+            String name,
+            String description,
+            int stock,
+            BigDecimal price,
+            long category_id,
+            long id_user
+    ) throws ProductDuplicateException, CategoryNotFoundException {
+        // ¿ya existe un producto con ese nombre?
+        List<Product> products = productRepository.findByname(name); // asegúrate que exista este método
+        if (!products.isEmpty()) {
+            throw new ProductDuplicateException();
+        }
+
+        Category category = categoryRepository.findById(category_id)
+                .orElseThrow(() -> new CategoryNotFoundException("La categoria " + category_id + " no existe"));
+
+        // (Opcional) setear createdBy si querés
+        User creator = userRepository.findById(id_user).orElse(null);
+
         Product p = new Product();
         p.setName(name);
         p.setDescription(description);
         p.setPrice(price);
         p.setStock(stock);
-        p.setSlug(description.replace(" ", "-"));
-        Category categoria = categoryRepository.findById(category_id).orElse(null);
-        p.setCategory(categoria);
+        // mejor slug desde el name
+        p.setSlug(name.trim().toLowerCase().replace(" ", "-"));
+        p.setCategory(category);
+        if (creator != null) {
+            p.setCreatedBy(creator);
+        }
+        // p.setIsActive(true); // si tu entidad lo tiene, dejalo en true por defecto
 
-        // User usuario = usaurioRepository.findById(user_id).orElse(null);
-        //p.setCreatedBy(usuario);
-        ProductRequest productRequest = new ProductRequest(p) ;
-        productRepository.save(p);
-        return productRequest;
+        Product saved = productRepository.save(p);
+        return toRequest(saved);
     }
-    throw new ProductDuplicateException();
-}
 
-public List<ProductRequest> getProductsByCategory(Long categoryId) throws CategoryNotFoundException {
-    Category categoria = categoryRepository.findById(categoryId).orElseThrow(() -> new CategoryNotFoundException("La categoria " + categoryId +" no existe"));
-    List<Product> productos = productRepository.findProductByCategory(categoria);
-    // Mapear a DTO
-    return productos.stream().map(ProductRequest::new).toList();
-}
+    public List<ProductRequest> getProductsByCategory(Long categoryId) throws CategoryNotFoundException {
+        Category categoria = categoryRepository.findById(categoryId)
+                .orElseThrow(() -> new CategoryNotFoundException("La categoria " + categoryId + " no existe"));
+        List<Product> productos = productRepository.findProductByCategory(categoria);
+        return productos.stream().map(this::toRequest).toList();
+    }
 
-public ProductRequest updatePrice(Long productId, BigDecimal newPrice) throws ProductNotFoundException {
-    Product product = productRepository.findById(productId)
-        .orElseThrow(() -> new ProductNotFoundException("Producto " + productId + " no encontrado"));
+    public ProductRequest updatePrice(Long productId, BigDecimal newPrice) throws ProductNotFoundException {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new ProductNotFoundException("Producto " + productId + " no encontrado"));
 
-    product.setPrice(newPrice);
-    Product updatedProduct = productRepository.save(product);
+        product.setPrice(newPrice);
+        Product updated = productRepository.save(product);
+        return toRequest(updated);
+    }
 
-    return new ProductRequest(updatedProduct);
-}
+    public ProductRequest updateStock(Long productId, int newStock) throws ProductNotFoundException {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new ProductNotFoundException("Producto " + productId + " no encontrado"));
 
-public ProductRequest updateStock(Long productId, int newStock) throws ProductNotFoundException {
-    Product product = productRepository.findById(productId)
-        .orElseThrow(() -> new ProductNotFoundException("Producto " + productId + " no encontrado"));
+        product.setStock(newStock);
+        Product updated = productRepository.save(product);
+        return toRequest(updated);
+    }
 
-    product.setStock(newStock);
-    Product updatedProduct = productRepository.save(product);
+    // ----------------- helper de mapeo -----------------
 
-    return new ProductRequest(updatedProduct);
-}
+    private ProductRequest toRequest(Product p) {
+        ProductRequest dto = new ProductRequest();
+        dto.setId(p.getId() != null ? p.getId() : 0L);
+        dto.setName(p.getName());
+        dto.setDescription(p.getDescription());
+        dto.setPrice(p.getPrice());
+        dto.setStock(p.getStock() != null ? p.getStock() : 0);
+
+        // id_category
+        dto.setId_category(p.getCategory() != null ? p.getCategory().getId() : null);
+        // id_user (created_by)
+        dto.setId_User(p.getCreatedBy() != null ? p.getCreatedBy().getId() : null);
+
+        // si tu ProductRequest ahora tiene is_active, podés setearlo acá
+        // dto.setIs_active(Boolean.TRUE.equals(p.getIsActive()));
+
+        return dto;
+    }
 }
 
 

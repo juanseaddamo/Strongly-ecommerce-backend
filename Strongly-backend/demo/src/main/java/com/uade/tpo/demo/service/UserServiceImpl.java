@@ -6,8 +6,6 @@ import java.util.List;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.security.crypto.password.PasswordEncoder;
-
 import com.uade.tpo.demo.entity.User;
 import com.uade.tpo.demo.entity.enums.Role;
 import com.uade.tpo.demo.repository.UserRepository;
@@ -20,7 +18,7 @@ import lombok.RequiredArgsConstructor;
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder; // ver bean más abajo
+    //private final PasswordEncoder passwordEncoder; // ver bean más abajo
 
     @Override
     @Transactional
@@ -33,7 +31,7 @@ public class UserServiceImpl implements UserService {
         User u = new User();
         u.setFullName(fullName);
         u.setEmail(email);
-        u.setPasswordHash(passwordEncoder.encode(rawPassword));
+        u.setPasswordHash(rawPassword   ); // TODO hashear con passwordEncoder
         u.setRole(Role.BUYER);            // por defecto
         u.setIsActive(true);
         u.setCreatedAt(Instant.now());
