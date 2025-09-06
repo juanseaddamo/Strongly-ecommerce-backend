@@ -1,28 +1,33 @@
 package com.uade.tpo.demo.entity;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
+
 import jakarta.persistence.*;
-import jakarta.persistence.Index;
 import lombok.Data;
+import lombok.ToString;
 
 @Entity
-@Table(name = "carts",
-       indexes = @Index(name = "idx_cart_user_unique", columnList = "user_id", unique = true))
 @Data
+@Table(name = "carts")
 public class Cart {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @OneToOne(optional = false)
-    @JoinColumn(name = "user_id", unique = true)
+    @ManyToOne(optional = false)
+    @JoinColumn(name="user_id", nullable=false, unique=true) // 1:1 lógico (un carrito por user)
     private User user;
 
-    @Column(name = "created_at")
+    @Column(name="created_at", nullable=false)
     private Instant createdAt;
 
     @OneToMany(mappedBy = "cart", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<CartItem> items;
+    @ToString.Exclude
+    private List<CartItem> items = new ArrayList<>();
 
-    @PrePersist public void prePersist() { if (createdAt == null) createdAt = Instant.now(); }
+    @PrePersist
+    public void prePersist() {
+        if (createdAt == null) createdAt = Instant.now();
+    }
 }

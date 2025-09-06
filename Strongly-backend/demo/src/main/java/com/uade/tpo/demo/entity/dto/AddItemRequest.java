@@ -1,3 +1,10 @@
 package com.uade.tpo.demo.entity.dto;
 
-public record AddItemRequest(Long productId, Integer quantity) {}
+import lombok.Data;
+
+@Data
+public class AddItemRequest {
+    private Long cartId;
+    private Long productId;
+    private Integer quantity;
+}

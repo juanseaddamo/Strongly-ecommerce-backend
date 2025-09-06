@@ -13,6 +13,7 @@ import com.uade.tpo.demo.exceptions.ProductDuplicateException;
 import com.uade.tpo.demo.exceptions.ProductNotFoundException;
 import com.uade.tpo.demo.service.ProductService;
 
+import jakarta.validation.Valid;
 
 import java.net.URI;
 import java.util.List;
@@ -33,6 +34,15 @@ public class ProductController {
 
     @Autowired
     private ProductService productService;
+
+    @Autowired
+    private com.uade.tpo.demo.repository.CategoryRepository categoryRepository;
+
+    @Autowired
+    private com.uade.tpo.demo.repository.UserRepository userRepository;
+
+    @Autowired
+    private com.uade.tpo.demo.repository.ProductRepository productRepository;
 
     @GetMapping
 public ResponseEntity<Page<ProductRequest>> getProduct(
@@ -89,12 +99,45 @@ public ResponseEntity<ProductRequest> getProductById(@PathVariable Long productI
 }
 
 
+
 @PostMapping
-public ResponseEntity<ProductRequest> createProduct(@RequestBody ProductRequest pr)  throws ProductDuplicateException {
+public ResponseEntity<?> createProduct(@Valid @RequestBody ProductRequest req) {
 
-    ProductRequest response =productService.createProduct(pr.getName(),pr.getDescription(),pr.getStock(),pr.getPrice(),pr.getId_category(),pr.getId_User());
-    return ResponseEntity.created(URI.create("/product/" + response.getId())).body(response);
+    // 1) validar que venga id_category e id_user (si los necesitás)
+    if (req.getId_category() == null) {
+        return ResponseEntity.badRequest().body("Falta el campo 'id_category' en el JSON");
+    }
+    if (req.getId_User() == null) {
+        return ResponseEntity.badRequest().body("Falta el campo 'id_user' en el JSON");
+    }
 
+    Long categoryId = req.getId_category();  // SIN .longValue()
+    Long userId     = req.getId_User();
+
+    // 2) buscar FK (si no existen, 404)
+    var category = categoryRepository.findById(categoryId)
+        .orElseThrow(() -> new CategoryNotFoundException("La categoria " + categoryId + " no existe"));
+
+    var creator = userRepository.findById(userId)
+        .orElseThrow(() -> new RuntimeException("El usuario " + userId + " no existe"));
+
+    // 3) construir y guardar el Product
+    var p = new Product();
+    p.setName(req.getName());
+    p.setDescription(req.getDescription());
+    p.setPrice(req.getPrice());
+    p.setStock(req.getStock());
+    p.setSlug(req.getName().trim().toLowerCase().replace(" ", "-"));
+    p.setCategory(category);
+    p.setCreatedBy(creator);
+    if (req.getIs_active() != null) {
+        p.setIsActive(req.getIs_active());
+    }
+
+    var saved = productRepository.save(p);
+
+    // 4) devolver algo útil (podés armar un ProductResponse si querés)
+    return ResponseEntity.ok(saved);
 }
 
 }

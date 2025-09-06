@@ -1,12 +1,10 @@
 package com.uade.tpo.demo.controllers;
 
-import java.util.List;
-
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import com.uade.tpo.demo.entity.dto.*;
-import com.uade.tpo.demo.entity.CartItem;
+import com.uade.tpo.demo.entity.Cart;
+import com.uade.tpo.demo.entity.dto.AddItemRequest;
 import com.uade.tpo.demo.service.CartService;
 
 import lombok.RequiredArgsConstructor;
@@ -18,64 +16,58 @@ public class CartController {
 
     private final CartService cartService;
 
-    // Lista items + total
+    // Crear carrito para un usuario
+    // POST /cart?userId=3
+    @PostMapping
+    public ResponseEntity<Cart> createCart(@RequestParam Long userId) {
+        var cart = cartService.createCartForUser(userId);
+        return ResponseEntity.ok(cart);
+    }
+
+    // Obtener carrito por cartId o por userId
+    // GET /cart?cartId=1  o  GET /cart?userId=3
     @GetMapping
-    public ResponseEntity<CartResponse> getCart(@RequestParam Long userId) {
-        var cart = cartService.getOrCreateByUser(userId);
-        var items = cartService.computeTotal(userId); // total
-        List<CartItem> raw = cart.getItems(); // si tenés mappedBy; si no, fetch desde repo
-
-        var list = (raw == null ? List.<CartItem>of() : raw).stream().map(ci ->
-            new CartItemResponse(
-                ci.getProduct().getId(),
-                ci.getProduct().getName(),
-                ci.getQuantity(),
-                ci.getUnitPrice(),
-                ci.getSubtotal()
-            )
-        ).toList();
-
-        return ResponseEntity.ok(new CartResponse(list, cartService.computeTotal(userId)));
+    public ResponseEntity<Cart> getCart(@RequestParam(required=false) Long cartId,
+                                        @RequestParam(required=false) Long userId) {
+        var cart = cartService.getCartByIdOrUser(cartId, userId);
+        return ResponseEntity.ok(cart);
     }
 
+    // Agregar item
+    // POST /cart/items  body: { "cartId":1, "productId":1, "quantity":2 }
     @PostMapping("/items")
-    public ResponseEntity<CartItemResponse> addItem(@RequestParam Long userId,
-                                                    @RequestBody AddItemRequest req) {
-        CartItem ci = cartService.addItem(userId, req.productId(), req.quantity());
-        return ResponseEntity.ok(new CartItemResponse(
-            ci.getProduct().getId(),
-            ci.getProduct().getName(),
-            ci.getQuantity(),
-            ci.getUnitPrice(),
-            ci.getSubtotal()
-        ));
+    public ResponseEntity<Cart> addItem(@RequestBody AddItemRequest req) {
+        if (req.getCartId() == null || req.getProductId() == null || req.getQuantity() == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        var cart = cartService.addItem(req.getCartId(), req.getProductId(), req.getQuantity());
+        return ResponseEntity.ok(cart);
     }
 
-    @PutMapping("/items/{productId}")
-    public ResponseEntity<?> setQty(@RequestParam Long userId,
-                                    @PathVariable Long productId,
-                                    @RequestBody SetQtyRequest req) {
-        CartItem ci = cartService.setQuantity(userId, productId, req.quantity());
-        if (ci == null) return ResponseEntity.noContent().build();
-        return ResponseEntity.ok(new CartItemResponse(
-            ci.getProduct().getId(),
-            ci.getProduct().getName(),
-            ci.getQuantity(),
-            ci.getUnitPrice(),
-            ci.getSubtotal()
-        ));
+    // Actualizar cantidad
+    // PATCH /cart/items  body: { "cartId":1, "productId":1, "quantity":5 }
+    @PatchMapping("/items")
+    public ResponseEntity<Cart> updateItemQty(@RequestBody AddItemRequest req) {
+        if (req.getCartId() == null || req.getProductId() == null || req.getQuantity() == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        var cart = cartService.updateItemQty(req.getCartId(), req.getProductId(), req.getQuantity());
+        return ResponseEntity.ok(cart);
     }
 
-    @DeleteMapping("/items/{productId}")
-    public ResponseEntity<Void> remove(@RequestParam Long userId,
-                                       @PathVariable Long productId) {
-        cartService.removeItem(userId, productId);
+    // Eliminar item
+    // DELETE /cart/items?cartId=1&productId=1
+    @DeleteMapping("/items")
+    public ResponseEntity<Void> removeItem(@RequestParam Long cartId, @RequestParam Long productId) {
+        cartService.removeItem(cartId, productId);
         return ResponseEntity.noContent().build();
     }
 
-    @DeleteMapping
-    public ResponseEntity<Void> clear(@RequestParam Long userId) {
-        cartService.clear(userId);
+    // Vaciar carrito
+    // DELETE /cart/clear?cartId=1
+    @DeleteMapping("/clear")
+    public ResponseEntity<Void> clear(@RequestParam Long cartId) {
+        cartService.clearCart(cartId);
         return ResponseEntity.noContent().build();
     }
 }

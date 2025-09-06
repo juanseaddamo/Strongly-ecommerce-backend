@@ -1,81 +1,63 @@
 package com.uade.tpo.demo.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.persistence.*;
+import lombok.Data;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Table;
-import jakarta.persistence.Index;
-import jakarta.persistence.UniqueConstraint;
-import jakarta.persistence.Id;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Column;
-import jakarta.persistence.Lob;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.OneToMany;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
-import lombok.Data;
 
 @Entity
-@Table(name = "products",
-       indexes = {
-         @Index(name = "idx_prod_name", columnList = "name"),
-         @Index(name = "idx_prod_active", columnList = "is_active")
-       },
-       uniqueConstraints = @UniqueConstraint(name = "uk_products_slug", columnNames = "slug"))
+@Table(name = "products")
 @Data
 public class Product {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = 150)
+    @Column(nullable=false, length=150)
     private String name;
 
-    @Column(nullable = false, unique = true, length = 180)
+    @Column(nullable=false, length=180, unique=true)
     private String slug;
 
-    @Lob
+    @Column(columnDefinition="TEXT")
     private String description;
 
-    // ...
-    @ManyToOne
-    @JoinColumn(name = "created_by")   // puede ser SELLER o ADMIN
-    private User createdBy;
-    // ...
-
-    @ManyToOne(optional = false)
-    @JoinColumn(name = "category_id")
+    @ManyToOne(optional=false)
+    @JoinColumn(name="category_id")
     private Category category;
 
-    @Column(nullable = false, precision = 12, scale = 2)
+    @Column(nullable=false, precision=12, scale=2)
     private BigDecimal price;
 
-    @Column(nullable = false)
-    private Integer stock = 0;
+    @Column(nullable=false)
+    private Integer stock;
 
-    @Column(name = "is_active", nullable = false)
+    @Column(name="is_active", nullable=false)
     private Boolean isActive = true;
 
-    @Column(name = "created_at")
-    private Instant createdAt;
+    @Column(name="created_at", nullable=false)
+    private Instant createdAt = Instant.now();
 
-    @Column(name = "updated_at")
+    @Column(name="updated_at")
     private Instant updatedAt;
 
-    // imágenes (lado inverso)
-    @OneToMany(mappedBy = "product")
+    @ManyToOne
+    @JoinColumn(name="created_by")
+    private User createdBy;
+
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ProductImage> images;
 
-    // (opcional) referencias inversas
+    // 👇 Evitar recursión: no serializar colecciones inversas
     @OneToMany(mappedBy = "product")
+    @JsonIgnore
     private List<OrderItem> orderItems;
 
     @OneToMany(mappedBy = "product")
+    @JsonIgnore
     private List<CartItem> cartItems;
 
-    @PrePersist public void prePersist() { if (createdAt == null) createdAt = Instant.now(); }
-    @PreUpdate  public void preUpdate()  { updatedAt = Instant.now(); }
+    @PreUpdate
+    public void touch() { this.updatedAt = Instant.now(); }
 }
