@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.uade.tpo.demo.entity.enums.OrderStatus;
 
 import jakarta.persistence.*;
@@ -31,6 +32,7 @@ public class Order {
     private Instant createdAt;
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonManagedReference
     private List<OrderItem> items;
 
     @PrePersist public void prePersist() { if (createdAt == null) createdAt = Instant.now(); }

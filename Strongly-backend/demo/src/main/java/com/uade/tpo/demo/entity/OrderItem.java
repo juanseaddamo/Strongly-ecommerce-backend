@@ -1,8 +1,10 @@
 package com.uade.tpo.demo.entity;
 
 import java.math.BigDecimal;
+
+import com.fasterxml.jackson.annotation.JsonBackReference;
+
 import jakarta.persistence.*;
-import jakarta.persistence.Index;
 import lombok.Data;
 
 @Entity
@@ -15,6 +17,7 @@ public class OrderItem {
 
     @ManyToOne(optional = false)
     @JoinColumn(name = "order_id")
+    @JsonBackReference
     private Order order;
 
     @ManyToOne(optional = false)

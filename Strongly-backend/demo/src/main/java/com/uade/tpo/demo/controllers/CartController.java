@@ -4,10 +4,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import com.uade.tpo.demo.entity.Cart;
+import com.uade.tpo.demo.entity.Order;
 import com.uade.tpo.demo.entity.dto.AddItemRequest;
 import com.uade.tpo.demo.service.CartService;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+
 
 @RestController
 @RequestMapping("/cart")
@@ -70,4 +74,15 @@ public class CartController {
         cartService.clearCart(cartId);
         return ResponseEntity.noContent().build();
     }
+
+    // Confirma el carrito y lo convierte en orden
+    @PostMapping("/{userId}/checkout")
+    public ResponseEntity<Order> checkout(@PathVariable Long userId) {
+       
+        Order order = cartService.checkout(userId);
+        return ResponseEntity.ok(order);
+        
+    }
+   
+   
 }

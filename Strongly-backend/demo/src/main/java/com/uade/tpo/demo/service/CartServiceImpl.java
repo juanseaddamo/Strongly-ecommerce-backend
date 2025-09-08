@@ -1,14 +1,22 @@
 package com.uade.tpo.demo.service;
 
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.uade.tpo.demo.entity.Cart;
 import com.uade.tpo.demo.entity.CartItem;
+import com.uade.tpo.demo.entity.Order;
+import com.uade.tpo.demo.entity.OrderItem;
 import com.uade.tpo.demo.repository.CartItemRepository;
 import com.uade.tpo.demo.repository.CartRepository;
+import com.uade.tpo.demo.repository.OrderRepository;
 import com.uade.tpo.demo.repository.ProductRepository;
 import com.uade.tpo.demo.repository.UserRepository;
 
@@ -22,6 +30,7 @@ public class CartServiceImpl implements CartService {
     private final CartItemRepository itemRepo;
     private final UserRepository userRepo;
     private final ProductRepository productRepo;
+    private final OrderRepository orderRepo;
 
     @Override
     @Transactional
@@ -112,5 +121,43 @@ public class CartServiceImpl implements CartService {
     public void clearCart(Long cartId) {
         var items = itemRepo.findByCartId(cartId);
         itemRepo.deleteAll(items);
+    }
+
+    @Override
+    @Transactional
+    public Order checkout(Long userId){
+
+        Cart cart = cartRepo.findByUserId(userId)
+        .orElseThrow(()-> new RuntimeException("Carrito no encontrado.")) ;
+
+        Order order = new Order();
+        order.setUser(cart.getUser());
+        order.setCreatedAt(Instant.now());
+
+        List<OrderItem> orderItems = cart.getItems().stream().map(cartItem -> {
+            OrderItem orderItem = new OrderItem();
+            orderItem.setOrder(order);
+            orderItem.setProduct(cartItem.getProduct());
+            orderItem.setQuantity(cartItem.getQuantity());
+            orderItem.setSubtotal(cartItem.getSubtotal());
+            orderItem.setUnitPrice(cartItem.getUnitPrice());
+            return orderItem;
+        }).collect(Collectors.toList());
+
+        order.setItems(orderItems);
+
+        BigDecimal totalPrice = orderItems.stream()
+        .map(OrderItem::getSubtotal)
+        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        order.setTotal(totalPrice);
+
+        Order savedOrder= orderRepo.save(order);
+
+        cart.getItems().clear();
+       
+        cartRepo.delete(cart);
+
+        return savedOrder;
     }
 }
