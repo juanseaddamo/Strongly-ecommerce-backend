@@ -6,11 +6,12 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-
+import com.uade.tpo.demo.repository.CartRepository;
 import com.uade.tpo.demo.controllers.auth.AuthenticationRequest;
 import com.uade.tpo.demo.controllers.auth.AuthenticationResponse;
 import com.uade.tpo.demo.controllers.auth.RegisterRequest;
 import com.uade.tpo.demo.controllers.config.JwtService;
+import com.uade.tpo.demo.entity.Cart;
 import com.uade.tpo.demo.entity.User;
 import com.uade.tpo.demo.repository.UserRepository;
 
@@ -23,6 +24,7 @@ public class AuthenticationService {
         private final PasswordEncoder passwordEncoder;
         private final JwtService jwtService;
         private final AuthenticationManager authenticationManager;
+        private final CartRepository cartRepository;
 
         public AuthenticationResponse register(RegisterRequest request) {
                 var user = User.builder()
@@ -34,6 +36,10 @@ public class AuthenticationService {
                                 .build();
 
                 repository.save(user);
+
+                Cart cart = new Cart(); //se crea el carrito al registrarse
+                cart.setUser(user);
+                cartRepository.save(cart);
                 var jwtToken = jwtService.generateToken(user);
                 return AuthenticationResponse.builder()
                                 .accessToken(jwtToken)

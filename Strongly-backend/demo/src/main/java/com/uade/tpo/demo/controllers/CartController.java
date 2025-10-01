@@ -20,13 +20,6 @@ public class CartController {
 
     private final CartService cartService;
 
-    // Crear carrito para un usuario
-    // POST /cart?userId=3
-    @PostMapping
-    public ResponseEntity<Cart> createCart(@RequestParam Long userId) {
-        var cart = cartService.createCartForUser(userId);
-        return ResponseEntity.ok(cart);
-    }
 
     // Obtener carrito por cartId o por userId
     // GET /cart?cartId=1  o  GET /cart?userId=3
