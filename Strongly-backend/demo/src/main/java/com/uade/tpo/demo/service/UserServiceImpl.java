@@ -6,8 +6,11 @@ import java.util.List;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import com.uade.tpo.demo.entity.Cart;
 import com.uade.tpo.demo.entity.User;
 import com.uade.tpo.demo.entity.enums.Role;
+import com.uade.tpo.demo.repository.CartRepository;
 import com.uade.tpo.demo.repository.UserRepository;
 
 
@@ -18,6 +21,7 @@ import lombok.RequiredArgsConstructor;
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
+    private final CartRepository cartRepository;
     //private final PasswordEncoder passwordEncoder; // ver bean más abajo
 
     @Override
@@ -35,6 +39,12 @@ public class UserServiceImpl implements UserService {
         u.setRole(Role.BUYER);            // por defecto
         u.setIsActive(true);
         u.setCreatedAt(Instant.now());
+        Cart existingCart = cartRepository.findByUserId(u.getId());
+        if (existingCart == null) {
+            Cart cart = new Cart();
+            cart.setUser(u);   
+            cartRepository.save(cart);
+        }
 
         try {
             return userRepository.save(u);

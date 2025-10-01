@@ -27,8 +27,11 @@ public class OrderServiceImpl implements OrderService {
 
     @Override @Transactional
     public Order checkout(Long userId) {
-        Cart cart = cartRepo.findByUserId(userId)
-                .orElseThrow(() -> new BusinessException("Carrito vacío"));
+        Cart cart = cartRepo.findByUserId(userId);
+        if (cart == null) {
+            throw new BusinessException("Carrito vacío");
+        }
+        
         List<CartItem> items = cartItemRepo.findByCartId(cart.getId());
         if (items.isEmpty()) throw new BusinessException("Carrito vacío");
 

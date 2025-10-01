@@ -34,15 +34,17 @@ public class CartServiceImpl implements CartService {
 
     @Override
     @Transactional
-    public Cart createCartForUser(Long userId) {
-        return cartRepo.findByUserId(userId).orElseGet(() -> {
-            var user = userRepo.findById(userId)
-                    .orElseThrow(() -> new RuntimeException("User " + userId + " no existe"));
-            var cart = new Cart();
-            cart.setUser(user);
-            return cartRepo.save(cart);
-        });
+public Cart createCartForUser(Long userId) {
+    Cart cart = cartRepo.findByUserId(userId);
+    if (cart == null) {
+        var user = userRepo.findById(userId)
+            .orElseThrow(() -> new RuntimeException("User " + userId + " no existe"));
+        cart = new Cart();
+        cart.setUser(user);
+        cart = cartRepo.save(cart);
     }
+    return cart;
+}
 
     @Override
     public Cart getCartByIdOrUser(Long cartId, Long userId) {
@@ -51,8 +53,11 @@ public class CartServiceImpl implements CartService {
                     .orElseThrow(() -> new RuntimeException("Cart " + cartId + " no existe"));
         }
         if (userId != null) {
-            return cartRepo.findByUserId(userId)
-                    .orElseThrow(() -> new RuntimeException("User " + userId + " no tiene cart"));
+            Cart cart = cartRepo.findByUserId(userId);
+            if (cart == null) {
+            throw new RuntimeException("User " + userId + " no tiene cart");
+            }
+        return cart;
         }
         throw new IllegalArgumentException("Falta cartId o userId");
     }
@@ -126,9 +131,10 @@ public class CartServiceImpl implements CartService {
     @Override
     @Transactional
     public Order checkout(Long userId){
-
-        Cart cart = cartRepo.findByUserId(userId)
-        .orElseThrow(()-> new RuntimeException("Carrito no encontrado.")) ;
+        Cart cart = cartRepo.findByUserId(userId);
+        if (cart == null) {
+            throw new RuntimeException("Carrito no encontrado.");
+        }
 
         Order order = new Order();
         order.setUser(cart.getUser());
@@ -154,9 +160,7 @@ public class CartServiceImpl implements CartService {
 
         Order savedOrder= orderRepo.save(order);
 
-        cart.getItems().clear();
-       
-        cartRepo.delete(cart);
+        clearCart(cart.getId());
 
         return savedOrder;
     }
