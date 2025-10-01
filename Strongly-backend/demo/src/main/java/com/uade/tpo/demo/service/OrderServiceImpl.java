@@ -29,9 +29,9 @@ public class OrderServiceImpl implements OrderService {
     public Order checkout(Long userId) {
         Cart cart = cartRepo.findByUserId(userId);
         if (cart == null) {
-            throw new BusinessException("Carrito vacío");
+            throw new BusinessException("No existe el carrito");
         }
-        
+
         List<CartItem> items = cartItemRepo.findByCartId(cart.getId());
         if (items.isEmpty()) throw new BusinessException("Carrito vacío");
 
