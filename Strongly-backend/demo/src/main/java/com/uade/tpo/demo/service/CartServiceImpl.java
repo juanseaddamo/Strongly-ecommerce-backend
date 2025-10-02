@@ -6,20 +6,24 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.stream.Collectors;
-
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import com.uade.tpo.demo.entity.Cart;
 import com.uade.tpo.demo.entity.CartItem;
 import com.uade.tpo.demo.entity.Order;
 import com.uade.tpo.demo.entity.OrderItem;
+import com.uade.tpo.demo.entity.dto.CartItemResponse;
+import com.uade.tpo.demo.entity.dto.CartResponse;
+import com.uade.tpo.demo.entity.dto.CheckoutItemResponse;
+import com.uade.tpo.demo.entity.dto.CheckoutResponse;
 import com.uade.tpo.demo.repository.CartItemRepository;
 import com.uade.tpo.demo.repository.CartRepository;
 import com.uade.tpo.demo.repository.OrderRepository;
 import com.uade.tpo.demo.repository.ProductRepository;
 import com.uade.tpo.demo.repository.UserRepository;
-
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -32,39 +36,54 @@ public class CartServiceImpl implements CartService {
     private final ProductRepository productRepo;
     private final OrderRepository orderRepo;
 
-    @Override
-    @Transactional
-public Cart createCartForUser(Long userId) {
-    Cart cart = cartRepo.findByUserId(userId);
-    if (cart == null) {
-        var user = userRepo.findById(userId)
-            .orElseThrow(() -> new RuntimeException("User " + userId + " no existe"));
-        cart = new Cart();
-        cart.setUser(user);
-        cart = cartRepo.save(cart);
+    private List<CartItemResponse> mapToDtoList(Cart cart) {
+        return cart.getItems().stream()
+                .map(item -> new CartItemResponse(
+                        item.getProduct().getId(),
+                        item.getProduct().getName(),
+                        item.getQuantity(),
+                        item.getUnitPrice(),
+                        item.getSubtotal()
+                ))
+                .toList();
     }
-    return cart;
-}
 
     @Override
-    public Cart getCartByIdOrUser(Long cartId, Long userId) {
+    @Transactional
+    public List<CartItemResponse> createCartForUser(Long userId) {
+        Cart cart = cartRepo.findByUserId(userId);
+        if (cart == null) {
+            var user = userRepo.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("User " + userId + " no existe"));
+            cart = new Cart();
+            cart.setUser(user);
+            cart = cartRepo.save(cart);
+        }
+        return mapToDtoList(cart);
+    }
+
+    
+
+    @Override
+    public List<CartItemResponse> getCartByIdOrUser(Long cartId, Long userId) {
+        Cart cart;
         if (cartId != null) {
-            return cartRepo.findById(cartId)
+            cart = cartRepo.findById(cartId)
                     .orElseThrow(() -> new RuntimeException("Cart " + cartId + " no existe"));
-        }
-        if (userId != null) {
-            Cart cart = cartRepo.findByUserId(userId);
+        } else if (userId != null) {
+            cart = cartRepo.findByUserId(userId);
             if (cart == null) {
-            throw new RuntimeException("User " + userId + " no tiene cart");
+                throw new RuntimeException("User " + userId + " no tiene cart");
             }
-        return cart;
+        } else {
+            throw new IllegalArgumentException("Falta cartId o userId");
         }
-        throw new IllegalArgumentException("Falta cartId o userId");
+        return mapToDtoList(cart);
     }
 
     @Override
     @Transactional
-    public Cart addItem(Long cartId, Long productId, int qty) {
+    public List<CartItemResponse> addItem(Long cartId, Long productId, int qty) {
         if (qty <= 0) throw new IllegalArgumentException("quantity debe ser > 0");
 
         var cart = cartRepo.findById(cartId)
@@ -78,25 +97,24 @@ public Cart createCartForUser(Long userId) {
                     ci.setCart(cart);
                     ci.setProduct(product);
                     ci.setQuantity(0);
-                    ci.setUnitPrice(product.getPrice()); // set inicial
-                    ci.setSubtotal(BigDecimal.ZERO);      // set inicial
+                    ci.setUnitPrice(product.getPrice());
+                    ci.setSubtotal(BigDecimal.ZERO);
                     return ci;
                 });
 
         int newQty = item.getQuantity() + qty;
         item.setQuantity(newQty);
-        item.setUnitPrice(product.getPrice()); // precio actual del producto
+        item.setUnitPrice(product.getPrice());
         item.setSubtotal(product.getPrice().multiply(BigDecimal.valueOf(newQty)));
 
         itemRepo.save(item);
 
-        // devolver el cart actualizado
-        return getCartByIdOrUser(cartId, null);
+        return mapToDtoList(cart);
     }
 
     @Override
     @Transactional
-    public Cart updateItemQty(Long cartId, Long productId, int qty) {
+    public List<CartItemResponse> updateItemQty(Long cartId, Long productId, int qty) {
         if (qty < 0) throw new IllegalArgumentException("quantity no puede ser negativo");
         var item = itemRepo.findByCartIdAndProductId(cartId, productId)
                 .orElseThrow(() -> new RuntimeException("Item no existe en el cart"));
@@ -104,7 +122,6 @@ public Cart createCartForUser(Long userId) {
         if (qty == 0) {
             itemRepo.delete(item);
         } else {
-            // recalcular con el precio actual del producto
             var product = item.getProduct();
             item.setQuantity(qty);
             item.setUnitPrice(product.getPrice());
@@ -112,7 +129,9 @@ public Cart createCartForUser(Long userId) {
             itemRepo.save(item);
         }
 
-        return getCartByIdOrUser(cartId, null);
+        var cart = cartRepo.findById(cartId)
+                .orElseThrow(() -> new RuntimeException("Cart " + cartId + " no existe"));
+        return mapToDtoList(cart);
     }
 
     @Override
@@ -129,39 +148,50 @@ public Cart createCartForUser(Long userId) {
     }
 
     @Override
-    @Transactional
-    public Order checkout(Long userId){
-        Cart cart = cartRepo.findByUserId(userId);
-        if (cart == null) {
-            throw new RuntimeException("Carrito no encontrado.");
-        }
+@Transactional
+public CheckoutResponse checkout(Long userId) {
+    Cart cart = cartRepo.findByUserId(userId);
+    if (cart == null) {
+        throw new RuntimeException("Carrito no encontrado.");
+    }
 
-        Order order = new Order();
-        order.setUser(cart.getUser());
-        order.setCreatedAt(Instant.now());
+    // Crear la orden y persistirla
+    Order order = new Order();
+    order.setUser(cart.getUser());
+    order.setCreatedAt(Instant.now());
 
-        List<OrderItem> orderItems = cart.getItems().stream().map(cartItem -> {
-            OrderItem orderItem = new OrderItem();
-            orderItem.setOrder(order);
-            orderItem.setProduct(cartItem.getProduct());
-            orderItem.setQuantity(cartItem.getQuantity());
-            orderItem.setSubtotal(cartItem.getSubtotal());
-            orderItem.setUnitPrice(cartItem.getUnitPrice());
-            return orderItem;
-        }).collect(Collectors.toList());
+    List<OrderItem> orderItems = cart.getItems().stream().map(cartItem -> {
+        OrderItem orderItem = new OrderItem();
+        orderItem.setOrder(order);
+        orderItem.setProduct(cartItem.getProduct());
+        orderItem.setQuantity(cartItem.getQuantity());
+        orderItem.setSubtotal(cartItem.getSubtotal());
+        orderItem.setUnitPrice(cartItem.getUnitPrice());
+        return orderItem;
+    }).toList();
 
-        order.setItems(orderItems);
+    order.setItems(orderItems);
 
-        BigDecimal totalPrice = orderItems.stream()
-        .map(OrderItem::getSubtotal)
-        .reduce(BigDecimal.ZERO, BigDecimal::add);
+    BigDecimal totalPrice = orderItems.stream()
+            .map(OrderItem::getSubtotal)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        order.setTotal(totalPrice);
+    order.setTotal(totalPrice);
 
-        Order savedOrder= orderRepo.save(order);
+    orderRepo.save(order);
 
-        clearCart(cart.getId());
+    // Mapear solo los campos que queremos devolver
+    List<CheckoutItemResponse> itemsDto = cart.getItems().stream()
+            .map(i -> new CheckoutItemResponse(
+                    i.getProduct().getName(),
+                    i.getQuantity(),
+                    i.getUnitPrice(),
+                    i.getSubtotal()
+            ))
+            .toList();
 
-        return savedOrder;
+    clearCart(cart.getId()); // vaciar el carrito después de checkout
+
+    return new CheckoutResponse(itemsDto, totalPrice);
     }
 }

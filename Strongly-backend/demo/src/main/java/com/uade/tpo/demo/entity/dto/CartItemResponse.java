@@ -4,4 +4,6 @@ import java.math.BigDecimal;
 
 
 public record CartItemResponse(Long productId, String name, Integer quantity,
-BigDecimal unitPrice, BigDecimal subtotal) {}
+BigDecimal unitPrice, BigDecimal subtotal) {
+    
+}
