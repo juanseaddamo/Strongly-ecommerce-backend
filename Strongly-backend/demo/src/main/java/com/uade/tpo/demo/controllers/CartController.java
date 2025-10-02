@@ -99,3 +99,20 @@ public class CartController {
         return ResponseEntity.ok(response);
     }
 }
+
+/*
+ * 
+    @DeleteMapping("/items")
+public ResponseEntity<Void> removeItem(@RequestParam Long productId, Principal principal) {
+    String email = principal.getName();
+    User user = userRepository.findByEmailAndIsActiveTrue(email)
+            .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+    // Obtengo solo mi carrito
+    Cart cart = cartService.getCartByUser(user.getId());
+
+    // Borro solo de mi carrito
+    itemRepo.deleteByCartIdAndProductId(cart.getId(), productId);
+    return ResponseEntity.noContent().build();
+}
+ */

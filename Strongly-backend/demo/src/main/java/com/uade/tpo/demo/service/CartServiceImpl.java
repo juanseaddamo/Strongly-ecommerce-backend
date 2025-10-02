@@ -4,8 +4,10 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import com.uade.tpo.demo.entity.Cart;
 import com.uade.tpo.demo.entity.CartItem;
@@ -141,9 +143,10 @@ public CartResponse updateItemQty(Long userId, Long productId, int qty) {
     return new CartResponse(cart.getId(), itemsDto, total);
 }
 
+
     @Override
     @Transactional
-    public void removeItem(Long userId, Long productId) {
+        public void removeItem(Long userId, Long productId) {
         Cart cart = getCartByUser(userId);
         itemRepo.deleteByCartIdAndProductId(cart.getId(), productId);
     }
