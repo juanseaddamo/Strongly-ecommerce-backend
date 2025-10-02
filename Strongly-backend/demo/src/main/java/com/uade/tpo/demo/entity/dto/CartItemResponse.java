@@ -7,3 +7,5 @@ public record CartItemResponse(Long productId, String name, Integer quantity,
 BigDecimal unitPrice, BigDecimal subtotal) {
     
 }
+
+

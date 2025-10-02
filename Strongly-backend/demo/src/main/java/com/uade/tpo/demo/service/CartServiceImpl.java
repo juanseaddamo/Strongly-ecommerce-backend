@@ -62,61 +62,84 @@ public class CartServiceImpl implements CartService {
 
     // ----------------- Servicio -----------------
 
-    @Override
-    @Transactional
-    public CartResponse getCartWithItems(Long userId) {
-        Cart cart = getCartByUser(userId);
-        return new CartResponse(cart.getId(), mapToDtoList(cart));
-    }
+@Override
+@Transactional
+public CartResponse getCartWithItems(Long userId) {
+    Cart cart = getCartByUser(userId); // obtiene o crea el carrito del usuario
+    List<CartItemResponse> itemsDto = mapToDtoList(cart);
+
+    // calcular el total sumando todos los subtotales
+    BigDecimal total = itemsDto.stream()
+            .map(CartItemResponse::subtotal) // accede al subtotal de cada item
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+    // devolver CartResponse con id, items y total
+    return new CartResponse(cart.getId(), itemsDto, total);
+}
 
     @Override
-    @Transactional
-    public CartResponse addItem(Long userId, Long productId, int qty) {
-        if (qty <= 0) throw new IllegalArgumentException("quantity debe ser > 0");
+@Transactional
+public CartResponse addItem(Long userId, Long productId, int qty) {
+    if (qty <= 0) throw new IllegalArgumentException("La cantidad debe ser mayor a 0");
 
-        Cart cart = getCartByUser(userId);
-        var product = productRepo.findById(productId)
-                .orElseThrow(() -> new RuntimeException("Product " + productId + " no existe"));
+    Cart cart = getCartByUser(userId);
 
-        CartItem item = itemRepo.findByCartIdAndProductId(cart.getId(), productId)
-                .orElseGet(() -> {
-                    CartItem ci = new CartItem();
-                    ci.setCart(cart);
-                    ci.setProduct(product);
-                    ci.setQuantity(0);
-                    ci.setUnitPrice(product.getPrice());
-                    ci.setSubtotal(BigDecimal.ZERO);
-                    return ci;
-                });
+    // Validar que el producto exista
+    var product = productRepo.findById(productId)
+            .orElseThrow(() -> new RuntimeException("El producto con id " + productId + " no existe"));
 
-        int newQty = item.getQuantity() + qty;
-        item.setQuantity(newQty);
-        item.setUnitPrice(product.getPrice());
-        item.setSubtotal(product.getPrice().multiply(BigDecimal.valueOf(newQty)));
+    CartItem item = itemRepo.findByCartIdAndProductId(cart.getId(), productId)
+            .orElseGet(() -> {
+                CartItem ci = new CartItem();
+                ci.setCart(cart);
+                ci.setProduct(product);
+                ci.setQuantity(0);
+                ci.setUnitPrice(product.getPrice());
+                ci.setSubtotal(BigDecimal.ZERO);
+                return ci;
+            });
 
+    int newQty = item.getQuantity() + qty;
+    item.setQuantity(newQty);
+    item.setUnitPrice(product.getPrice());
+    item.setSubtotal(product.getPrice().multiply(BigDecimal.valueOf(newQty)));
+
+    itemRepo.save(item);
+
+    // --- ACÁ CALCULAMOS itemsDto y total ---
+    List<CartItemResponse> itemsDto = mapToDtoList(cart);
+    BigDecimal total = itemsDto.stream()
+            .map(CartItemResponse::subtotal)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+    return new CartResponse(cart.getId(), itemsDto, total);
+}
+
+ @Override
+@Transactional
+public CartResponse updateItemQty(Long userId, Long productId, int qty) {
+    Cart cart = getCartByUser(userId);
+
+    CartItem item = itemRepo.findByCartIdAndProductId(cart.getId(), productId)
+            .orElseThrow(() -> new RuntimeException("El item no existe en el carrito"));
+
+    if (qty == 0) {
+        itemRepo.delete(item);
+    } else {
+        item.setQuantity(qty);
+        item.setUnitPrice(item.getProduct().getPrice());
+        item.setSubtotal(item.getProduct().getPrice().multiply(BigDecimal.valueOf(qty)));
         itemRepo.save(item);
-
-        return new CartResponse(cart.getId(), mapToDtoList(cart));
     }
 
-    @Override
-    @Transactional
-    public CartResponse updateItemQty(Long userId, Long productId, int qty) {
-        Cart cart = getCartByUser(userId);
-        CartItem item = itemRepo.findByCartIdAndProductId(cart.getId(), productId)
-                .orElseThrow(() -> new RuntimeException("Item no existe en el cart"));
+    // --- CALCULAMOS itemsDto y total ---
+    List<CartItemResponse> itemsDto = mapToDtoList(cart);
+    BigDecimal total = itemsDto.stream()
+            .map(CartItemResponse::subtotal)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        if (qty == 0) {
-            itemRepo.delete(item);
-        } else {
-            item.setQuantity(qty);
-            item.setUnitPrice(item.getProduct().getPrice());
-            item.setSubtotal(item.getProduct().getPrice().multiply(BigDecimal.valueOf(qty)));
-            itemRepo.save(item);
-        }
-
-        return new CartResponse(cart.getId(), mapToDtoList(cart));
-    }
+    return new CartResponse(cart.getId(), itemsDto, total);
+}
 
     @Override
     @Transactional
@@ -129,8 +152,7 @@ public class CartServiceImpl implements CartService {
     @Transactional
     public void clearCart(Long userId) {
         Cart cart = getCartByUser(userId);
-        List<CartItem> items = itemRepo.findByCartId(cart.getId());
-        itemRepo.deleteAll(items);
+        itemRepo.deleteByCartId(cart.getId());
     }
 
     @Override
@@ -163,7 +185,6 @@ public class CartServiceImpl implements CartService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         order.setTotal(totalPrice);
-
         orderRepo.save(order);
 
         List<CheckoutItemResponse> itemsDto = cart.getItems().stream()

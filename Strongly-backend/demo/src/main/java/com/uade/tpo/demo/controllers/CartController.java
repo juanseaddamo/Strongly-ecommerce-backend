@@ -34,6 +34,8 @@ public class CartController {
         return ResponseEntity.ok(cart);
     }
 
+    
+
     // Agregar item al carrito
     @PostMapping("/items")
     public ResponseEntity<CartResponse> addItem(@RequestBody AddItemRequest req, Principal principal) {
