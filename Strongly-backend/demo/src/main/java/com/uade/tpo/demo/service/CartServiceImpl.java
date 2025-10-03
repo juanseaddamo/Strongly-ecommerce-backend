@@ -102,6 +102,11 @@ public CartResponse addItem(Long userId, Long productId, int qty) {
             });
 
     int newQty = item.getQuantity() + qty;
+
+    // Validación de stock
+    if (newQty > product.getStock()) {
+    throw new RuntimeException("No hay suficiente stock. Disponible: " + product.getStock());
+    }
     item.setQuantity(newQty);
     item.setUnitPrice(product.getPrice());
     item.setSubtotal(product.getPrice().multiply(BigDecimal.valueOf(newQty)));
@@ -117,7 +122,7 @@ public CartResponse addItem(Long userId, Long productId, int qty) {
     return new CartResponse(cart.getId(), itemsDto, total);
 }
 
- @Override
+@Override
 @Transactional
 public CartResponse updateItemQty(Long userId, Long productId, int qty) {
     Cart cart = getCartByUser(userId);
@@ -125,16 +130,21 @@ public CartResponse updateItemQty(Long userId, Long productId, int qty) {
     CartItem item = itemRepo.findByCartIdAndProductId(cart.getId(), productId)
             .orElseThrow(() -> new RuntimeException("El item no existe en el carrito"));
 
+    var product = item.getProduct(); // <-- agregar esta línea
+
     if (qty == 0) {
         itemRepo.delete(item);
     } else {
+        if (qty > product.getStock()) {
+            throw new RuntimeException("No hay suficiente stock. Disponible: " + product.getStock());
+        }
         item.setQuantity(qty);
-        item.setUnitPrice(item.getProduct().getPrice());
-        item.setSubtotal(item.getProduct().getPrice().multiply(BigDecimal.valueOf(qty)));
+        item.setUnitPrice(product.getPrice());
+        item.setSubtotal(product.getPrice().multiply(BigDecimal.valueOf(qty)));
         itemRepo.save(item);
     }
 
-    // --- CALCULAMOS itemsDto y total ---
+    // calcular itemsDto y total
     List<CartItemResponse> itemsDto = mapToDtoList(cart);
     BigDecimal total = itemsDto.stream()
             .map(CartItemResponse::subtotal)
