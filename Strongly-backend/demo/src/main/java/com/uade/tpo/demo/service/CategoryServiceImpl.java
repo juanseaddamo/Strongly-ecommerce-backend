@@ -9,6 +9,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import com.uade.tpo.demo.entity.Category;
+import com.uade.tpo.demo.entity.dto.CategoryResponse;
 import com.uade.tpo.demo.exceptions.CategoryDuplicateException;
 import com.uade.tpo.demo.exceptions.CategoryNotFoundException;
 import com.uade.tpo.demo.repository.CategoryRepository;
@@ -19,9 +20,14 @@ public class CategoryServiceImpl implements CategoryService {
     @Autowired
     private CategoryRepository categoryRepository;
 
-    public Page<Category> getCategories(PageRequest pageable) {
-        return categoryRepository.findAll(pageable);
-    }
+    @Override
+public List<CategoryResponse> getAllCategories() {
+    return categoryRepository.findAll()
+            .stream()
+            .map(cat -> new CategoryResponse(cat.getId(), cat.getName()))
+            .toList();
+}
+
 
     public Optional<Category> getCategoryById(Long categoryId) {
         return categoryRepository.findById(categoryId);
