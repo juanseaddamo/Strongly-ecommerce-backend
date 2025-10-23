@@ -34,7 +34,7 @@ public class SecurityConfig {
                                  // Endpoints públicos                                 
                                  .requestMatchers("/api/v1/auth/**").permitAll() // auth
                                 .requestMatchers("/error/**").permitAll() // manejo de errores
-                                .requestMatchers(HttpMethod.GET,"/product/**").permitAll() // listar productos 
+                                .requestMatchers(HttpMethod.GET,"/product", "/product/**").permitAll() // listar productos 
                                 .requestMatchers(HttpMethod.GET,"/categories/**").permitAll() // categorías 
                                 .requestMatchers(HttpMethod.GET,"/offers/**").permitAll() // ofertas 
                                 .requestMatchers(HttpMethod.GET,"/brands/**").permitAll() // marcas 
